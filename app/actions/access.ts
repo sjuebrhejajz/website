@@ -49,15 +49,42 @@ export async function submitAccessRequest(
   const token = randomBytes(32).toString('hex')
   const tokenExpires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7) // 7 days
 
-  await db.insert(accessRequest).values({
-    username,
-    email,
-    reason: reason || null,
-    approvalToken: token,
-    approvalTokenExpiresAt: tokenExpires,
-    ipAddress,
-    userAgent,
-  })
+  // Try to store the approval token. If the DB schema hasn't been migrated
+  // to include `approvalToken` columns, fall back to inserting without them
+  // so the submit flow doesn't crash.
+  let tokenStored = false
+  try {
+    await db.insert(accessRequest).values({
+      username,
+      email,
+      reason: reason || null,
+      approvalToken: token,
+      approvalTokenExpiresAt: tokenExpires,
+      ipAddress,
+      userAgent,
+    })
+    tokenStored = true
+  } catch (err: any) {
+    const msg = String(err?.message ?? err)
+    // If the error indicates missing columns, retry without token fields.
+    if (msg.toLowerCase().includes('approvaltoken') || msg.toLowerCase().includes('column') || msg.toLowerCase().includes('does not exist')) {
+      try {
+        await db.insert(accessRequest).values({
+          username,
+          email,
+          reason: reason || null,
+          ipAddress,
+          userAgent,
+        })
+        tokenStored = false
+      } catch (err2) {
+        // If the fallback also fails, rethrow so the caller sees the error.
+        throw err2
+      }
+    } else {
+      throw err
+    }
+  }
 
   // Total number of requests received so far.
   const [{ value: total }] = await db

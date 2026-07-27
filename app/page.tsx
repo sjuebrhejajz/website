@@ -60,6 +60,12 @@ export default async function HomePage() {
             Request access
           </h2>
           <RequestAccessForm />
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            Already have access?{' '}
+            <Link href="/sign-in" className="font-medium text-primary hover:underline">
+              Sign in
+            </Link>
+          </p>
         </section>
 
         <footer className="mt-auto pt-10 text-center text-xs text-muted-foreground/60">
