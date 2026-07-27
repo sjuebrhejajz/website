@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import React, { Suspense } from 'react'
 import { SignUpForm } from '@/components/signup-form'
 
 export default function SignUpPage() {
@@ -16,7 +17,9 @@ export default function SignUpPage() {
           <p className="mb-5 mt-1 text-xs leading-relaxed text-muted-foreground text-pretty">
             Only approved requests or whitelisted emails may create an account. Provide the email you used when requesting access.
           </p>
-          <SignUpForm />
+          <Suspense fallback={<div aria-hidden />}> 
+            <SignUpForm />
+          </Suspense>
           <p className="mt-4 text-center text-xs text-muted-foreground">
             Already have an account?{' '}
             <Link href="/sign-in" className="font-medium text-primary hover:underline">
