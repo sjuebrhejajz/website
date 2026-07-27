@@ -1,8 +1,37 @@
 import React, { Suspense } from 'react'
 import Link from 'next/link'
 import { ProfileEditor } from '@/components/profile-editor'
+import { cookies } from 'next/headers'
+import { db } from '@/lib/db'
+import { session, user } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
+import { redirect } from 'next/navigation'
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  // Server-side auth: check cookies against session tokens in DB.
+  const ck = cookies()
+  const all = ck.getAll().map((c) => c.value)
+  let currentUser: any = null
+
+  for (const val of all) {
+    if (!val) continue
+    const rows = await db
+      .select()
+      .from(session)
+      .where(eq(session.token, val))
+      .limit(1)
+    const s = rows[0]
+    if (s) {
+      const users = await db.select().from(user).where(eq(user.id, s.userId)).limit(1)
+      currentUser = users[0]
+      break
+    }
+  }
+
+  if (!currentUser) {
+    redirect('/sign-in')
+  }
+
   return (
     <main className="min-h-dvh p-8">
       <div className="mx-auto max-w-3xl">

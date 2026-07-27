@@ -5,9 +5,11 @@ import { eq } from 'drizzle-orm'
 import { sendEmail } from '@/lib/email'
 import { SITE_NAME } from '@/lib/config'
 
-export async function GET(req: Request, { params }: { params: { token: string } }) {
+export async function GET(req: Request, { params }: { params: { token?: string } }) {
   try {
-    const token = params.token
+    // Support token in path (`/api/approve/<token>`) or as query `?token=...`.
+    const url = new URL(req.url)
+    const token = params?.token ?? url.searchParams.get('token') ?? undefined
     if (!token) return NextResponse.json({ ok: false, error: 'missing_token' }, { status: 400 })
 
     const rows = await db.select().from(accessRequest).where(eq(accessRequest.approvalToken, token)).limit(1)
