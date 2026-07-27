@@ -62,6 +62,8 @@ export const accessRequest = pgTable('access_request', {
   email: text('email').notNull(),
   reason: text('reason'),
   status: text('status').notNull().default('pending'),
+  approvalToken: text('approvalToken'),
+  approvalTokenExpiresAt: timestamp('approvalTokenExpiresAt'),
   ipAddress: text('ipAddress'),
   userAgent: text('userAgent'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
