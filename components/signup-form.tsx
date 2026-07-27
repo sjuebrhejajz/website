@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
 
 export function SignUpForm() {
@@ -51,6 +51,12 @@ export function SignUpForm() {
       setPending(false)
     }
   }
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const q = searchParams?.get('email')
+    if (q) setEmail(String(q).trim())
+  }, [searchParams])
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
