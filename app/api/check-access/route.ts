@@ -2,12 +2,17 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { accessRequest } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { isWhitelistedEmail } from '@/lib/config'
 
 export async function POST(req: Request) {
   try {
     const body = await req.json()
     const email = String(body.email ?? '').trim().toLowerCase()
     if (!email) return NextResponse.json({ approved: false }, { status: 400 })
+
+    if (isWhitelistedEmail(email)) {
+      return NextResponse.json({ approved: true, source: 'whitelist' })
+    }
 
     const rows = await db
       .select()
@@ -17,7 +22,7 @@ export async function POST(req: Request) {
 
     const row = rows[0]
     if (row && row.status === 'approved') {
-      return NextResponse.json({ approved: true })
+      return NextResponse.json({ approved: true, source: 'access-request' })
     }
 
     return NextResponse.json({ approved: false })
