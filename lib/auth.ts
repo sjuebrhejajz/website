@@ -20,12 +20,18 @@ if (process.env.RESEND_API_KEY) {
   advanced.sendEmail = async ({ to, subject, html, text }: any) => {
     // Use Resend to deliver transactional emails. `RESEND_FROM` allows a
     // verified sender address like `noreply@uncertain.uk`.
-    await resend.emails.send({
+    const response = await resend.emails.send({
       from: `${SITE_NAME} <${resendFrom}>`,
       to,
       subject,
       html: html ?? text,
     })
+
+    if (response.error) {
+      throw new Error(response.error.message ?? 'Failed to send email')
+    }
+
+    return response
   }
 }
 
