@@ -8,8 +8,8 @@ import { SITE_NAME } from '@/lib/config'
 export async function GET(req: Request, { params }: { params: { token?: string } }) {
   try {
     // Support token in path (`/api/approve/<token>`) or as query `?token=...`.
-    const url = new URL(req.url)
-    const token = params?.token ?? url.searchParams.get('token') ?? undefined
+    const reqUrl = new URL(req.url)
+    const token = params?.token ?? reqUrl.searchParams.get('token') ?? undefined
     if (!token) return NextResponse.json({ ok: false, error: 'missing_token' }, { status: 400 })
 
     const rows = await db.select().from(accessRequest).where(eq(accessRequest.approvalToken, token)).limit(1)
@@ -54,8 +54,7 @@ export async function GET(req: Request, { params }: { params: { token?: string }
     }
 
     // Redirect to a simple confirmation page (home with query param)
-    const url = new URL(req.url)
-    const redirectTo = `${url.origin}/?approved=1`
+    const redirectTo = `${reqUrl.origin}/?approved=1`
     return NextResponse.redirect(redirectTo)
   } catch (err) {
     console.error(err)
