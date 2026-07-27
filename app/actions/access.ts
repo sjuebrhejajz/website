@@ -129,6 +129,7 @@ export async function submitAccessRequest(
 <p><a href="${approveUrl}">Approve request</a></p>`
 
       try {
+        console.log('Admin approve link (debug):', approveUrl)
         await sendEmail({ to: 'insanity@uncertain.uk', subject, html })
       } catch (err) {
         console.error('Failed to send admin approval email', err)
@@ -162,29 +163,31 @@ export async function submitAccessRequest(
   })
 
   // Send an approval email to the site owner with a one-time approve link.
-  try {
-    const host =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      (process.env.VERCEL_PROJECT_PRODUCTION_URL
-        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-        : process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : process.env.V0_RUNTIME_URL ?? 'http://localhost:3000')
+    try {
+      const host =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (process.env.VERCEL_PROJECT_PRODUCTION_URL
+          ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+          : process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : process.env.V0_RUNTIME_URL ?? 'http://localhost:3000')
 
-    const approveUrl = `${host.replace(/\/$/, '')}/api/approve/${token}`
+      const approveUrl = `${host.replace(/\/$/, '')}/api/approve/${token}`
 
-    const subject = `New access request for ${SITE_NAME}: ${username}`
-    const html = `<p>A new access request was submitted.</p>
+      const subject = `New access request for ${SITE_NAME}: ${username}`
+      const html = `<p>A new access request was submitted.</p>
 <p><strong>Username:</strong> ${username}<br/>
 <strong>Email:</strong> ${email}<br/>
 <strong>Reason:</strong> ${reason || '—'}</p>
 <p>To approve this request, click the link below. This link can only be used once.</p>
 <p><a href="${approveUrl}">Approve request</a></p>`
 
-    await sendEmail({ to: 'insanity@uncertain.uk', subject, html })
-  } catch (err) {
-    console.error('Failed to send admin approval email', err)
-  }
+      console.log('Admin approve link (debug):', approveUrl)
+
+      await sendEmail({ to: 'insanity@uncertain.uk', subject, html })
+    } catch (err) {
+      console.error('Failed to send admin approval email', err)
+    }
 
   return { ok: true }
 }
