@@ -38,52 +38,109 @@ export async function submitAccessRequest(
   if (reason.length > 500) {
     return { error: 'Reason must be under 500 characters.' }
   }
-
-  const hdrs = await headers()
-  const ipAddress =
-    hdrs.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    hdrs.get('x-real-ip') ??
-    null
-  const userAgent = hdrs.get('user-agent') ?? null
-
-  const token = randomBytes(32).toString('hex')
-  const tokenExpires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7) // 7 days
-
-  // Try to store the approval token. If the DB schema hasn't been migrated
-  // to include `approvalToken` columns, fall back to inserting without them
-  // so the submit flow doesn't crash.
-  let tokenStored = false
   try {
-    await db.insert(accessRequest).values({
-      username,
-      email,
-      reason: reason || null,
-      approvalToken: token,
-      approvalTokenExpiresAt: tokenExpires,
-      ipAddress,
-      userAgent,
-    })
-    tokenStored = true
-  } catch (err: any) {
-    const msg = String(err?.message ?? err)
-    // If the error indicates missing columns, retry without token fields.
-    if (msg.toLowerCase().includes('approvaltoken') || msg.toLowerCase().includes('column') || msg.toLowerCase().includes('does not exist')) {
-      try {
-        await db.insert(accessRequest).values({
-          username,
-          email,
-          reason: reason || null,
-          ipAddress,
-          userAgent,
-        })
-        tokenStored = false
-      } catch (err2) {
-        // If the fallback also fails, rethrow so the caller sees the error.
-        throw err2
+    const hdrs = await headers()
+    const ipAddress =
+      hdrs.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      hdrs.get('x-real-ip') ??
+      null
+    const userAgent = hdrs.get('user-agent') ?? null
+
+    const token = randomBytes(32).toString('hex')
+    const tokenExpires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7) // 7 days
+
+    // Try to store the approval token. If the DB schema hasn't been migrated
+    // to include `approvalToken` columns, fall back to inserting without them
+    // so the submit flow doesn't crash.
+    let tokenStored = false
+    try {
+      await db.insert(accessRequest).values({
+        username,
+        email,
+        reason: reason || null,
+        approvalToken: token,
+        approvalTokenExpiresAt: tokenExpires,
+        ipAddress,
+        userAgent,
+      })
+      tokenStored = true
+    } catch (err: any) {
+      const msg = String(err?.message ?? err)
+      // If the error indicates missing columns, retry without token fields.
+      if (msg.toLowerCase().includes('approvaltoken') || msg.toLowerCase().includes('column') || msg.toLowerCase().includes('does not exist')) {
+        try {
+          await db.insert(accessRequest).values({
+            username,
+            email,
+            reason: reason || null,
+            ipAddress,
+            userAgent,
+          })
+          tokenStored = false
+        } catch (err2) {
+          // If the fallback also fails, rethrow so the caller sees the error.
+          throw err2
+        }
+      } else {
+        throw err
       }
-    } else {
-      throw err
     }
+
+    // Total number of requests received so far.
+    const [{ value: total }] = await db
+      .select({ value: count() })
+      .from(accessRequest)
+
+    try {
+      await postToDiscord({
+        title: 'New access request',
+        description: `A new user requested access to uncertain.uk.`,
+        color: 0x8b5cf6,
+        fields: [
+          { name: 'Username', value: username, inline: true },
+          { name: 'Email', value: email, inline: true },
+          { name: 'Total requests', value: String(total), inline: true },
+          { name: 'Reason', value: reason || '—' },
+          { name: 'IP', value: ipAddress ?? 'unknown', inline: true },
+        ],
+      })
+    } catch (err) {
+      console.error('Discord webhook failed', err)
+    }
+
+    // Send an approval email to the site owner with a one-time approve link.
+    try {
+      const host =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (process.env.VERCEL_PROJECT_PRODUCTION_URL
+          ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+          : process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : process.env.V0_RUNTIME_URL ?? 'http://localhost:3000')
+
+      const approveUrl = `${host.replace(/\/$/, '')}/api/approve/${token}`
+
+      const subject = `New access request for ${SITE_NAME}: ${username}`
+      const html = `<p>A new access request was submitted.</p>
+<p><strong>Username:</strong> ${username}<br/>
+<strong>Email:</strong> ${email}<br/>
+<strong>Reason:</strong> ${reason || '—'}</p>
+<p>To approve this request, click the link below. This link can only be used once.</p>
+<p><a href="${approveUrl}">Approve request</a></p>`
+
+      try {
+        await sendEmail({ to: 'insanity@uncertain.uk', subject, html })
+      } catch (err) {
+        console.error('Failed to send admin approval email', err)
+      }
+    } catch (err) {
+      console.error('Failed to prepare or send admin email', err)
+    }
+
+    return { ok: true }
+  } catch (err) {
+    console.error('submitAccessRequest failed', err)
+    return { error: 'An internal error occurred. Please try again later.' }
   }
 
   // Total number of requests received so far.
