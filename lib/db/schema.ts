@@ -7,6 +7,11 @@ export const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
+  displayName: text('displayName'),
+  bio: text('bio'),
+  avatarUrl: text('avatarUrl'),
+  links: text('links'), // JSON string: [{label,url},...]
+  theme: text('theme'), // JSON string for theme options
   emailVerified: boolean('emailVerified').notNull().default(false),
   image: text('image'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
